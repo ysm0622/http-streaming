@@ -453,6 +453,7 @@ export default class SegmentLoader extends videojs.EventTarget {
     this.roundTrip = NaN;
     this.resetStats_();
     this.mediaIndex = null;
+    this.partIndex = null;
 
     // private settings
     this.hasPlayed_ = settings.hasPlayed;
@@ -1057,6 +1058,7 @@ export default class SegmentLoader extends videojs.EventTarget {
       segmentTransmuxer.reset(this.transmuxer_);
     }
     this.mediaIndex = null;
+    this.partIndex = null;
     this.syncPoint_ = null;
     this.isPendingTimestampOffset_ = false;
     this.callQueue_ = [];
@@ -1192,7 +1194,8 @@ export default class SegmentLoader extends videojs.EventTarget {
       this.mediaIndex,
       this.hasPlayed_(),
       this.currentTime_(),
-      this.syncPoint_
+      this.syncPoint_,
+      this.partIndex
     );
 
     if (!segmentInfo) {
@@ -1254,7 +1257,7 @@ export default class SegmentLoader extends videojs.EventTarget {
    * @param {Object} syncPoint - a segment info object that describes the
    * @return {Object} a segment request object that describes the segment to load
    */
-  checkBuffer_(buffered, playlist, currentMediaIndex, hasPlayed, currentTime, syncPoint) {
+  checkBuffer_(buffered, playlist, currentMediaIndex, hasPlayed, currentTime, syncPoint, currentPartIndex) {
     let lastBufferedEnd = 0;
 
     if (buffered.length) {
@@ -1279,6 +1282,7 @@ export default class SegmentLoader extends videojs.EventTarget {
       return null;
     }
 
+    let nextPartIndex = null;
     let nextMediaIndex = null;
     let startOfSegment;
     let isSyncRequest = false;
@@ -1299,8 +1303,14 @@ export default class SegmentLoader extends videojs.EventTarget {
       } else {
         startOfSegment = lastBufferedEnd;
       }
+      nextPartIndex = typeof currentPartIndex === 'number' ? currentPartIndex + 1 : 0;
 
-      nextMediaIndex = currentMediaIndex + 1;
+      if (!segment.parts || !segment.parts.length || !segment.parts[nextPartIndex]) {
+        nextMediaIndex = currentMediaIndex + 1;
+        nextPartIndex = 0;
+      } else {
+        nextMediaIndex = currentMediaIndex;
+      }
 
     // There is a sync-point but the lack of a mediaIndex indicates that
     // we need to make a good conservative guess about which segment to
@@ -1329,7 +1339,7 @@ export default class SegmentLoader extends videojs.EventTarget {
       startOfSegment = mediaSourceInfo.startTime;
     }
 
-    const segmentInfo = this.generateSegmentInfo_(playlist, nextMediaIndex, startOfSegment, isSyncRequest);
+    const segmentInfo = this.generateSegmentInfo_(playlist, nextMediaIndex, startOfSegment, isSyncRequest, nextPartIndex);
 
     if (!segmentInfo) {
       return;
@@ -1385,12 +1395,13 @@ export default class SegmentLoader extends videojs.EventTarget {
     return Math.max(playlist.segments.length - 1, 0);
   }
 
-  generateSegmentInfo_(playlist, mediaIndex, startOfSegment, isSyncRequest) {
+  generateSegmentInfo_(playlist, mediaIndex, startOfSegment, isSyncRequest, partIndex) {
     if (mediaIndex < 0 || mediaIndex >= playlist.segments.length) {
       return null;
     }
 
     const segment = playlist.segments[mediaIndex];
+    const part = segment.parts && segment.parts.length && segment.parts[partIndex];
     const audioBuffered = this.sourceUpdater_.audioBuffered();
     const videoBuffered = this.sourceUpdater_.videoBuffered();
     let audioAppendStart;
@@ -1416,9 +1427,10 @@ export default class SegmentLoader extends videojs.EventTarget {
     return {
       requestId: 'segment-loader-' + Math.random(),
       // resolve the segment URL relative to the playlist
-      uri: segment.resolvedUri,
+      uri: part && part.resolvedUri || segment.resolvedUri,
       // the segment's mediaIndex at the time it was requested
       mediaIndex,
+      partIndex,
       // whether or not to update the SegmentLoader's state with this
       // segment's mediaIndex
       isSyncRequest,
@@ -1438,6 +1450,7 @@ export default class SegmentLoader extends videojs.EventTarget {
       duration: segment.duration,
       // retain the segment in case the playlist updates while doing an async process
       segment,
+      part,
       byteLength: 0,
       transmuxer: this.transmuxer_,
       audioAppendStart,
@@ -2268,7 +2281,8 @@ export default class SegmentLoader extends videojs.EventTarget {
       requestId: segmentInfo.requestId,
       transmuxer: segmentInfo.transmuxer,
       audioAppendStart: segmentInfo.audioAppendStart,
-      gopsToAlignWith: segmentInfo.gopsToAlignWith
+      gopsToAlignWith: segmentInfo.gopsToAlignWith,
+      part: segmentInfo.part
     };
 
     const previousSegment = segmentInfo.playlist.segments[segmentInfo.mediaIndex - 1];
@@ -2778,6 +2792,7 @@ export default class SegmentLoader extends videojs.EventTarget {
     this.trigger('progress');
 
     this.mediaIndex = segmentInfo.mediaIndex;
+    this.partIndex = segmentInfo.partIndex;
 
     // any time an update finishes and the last segment is in the
     // buffer, end the stream. this ensures the "ended" event will

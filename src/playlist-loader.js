@@ -46,7 +46,7 @@ export const updateSegments = (original, update, offset) => {
 };
 
 export const resolveSegmentUris = (segment, baseUri) => {
-  if (!segment.resolvedUri) {
+  if (!segment.resolvedUri && segment.uri) {
     segment.resolvedUri = resolveUrl(baseUri, segment.uri);
   }
   if (segment.key && !segment.key.resolvedUri) {
@@ -54,6 +54,17 @@ export const resolveSegmentUris = (segment, baseUri) => {
   }
   if (segment.map && !segment.map.resolvedUri) {
     segment.map.resolvedUri = resolveUrl(baseUri, segment.map.uri);
+  }
+  if (segment.parts && segment.parts.length && !segment.parts[0].resolvedUri) {
+    segment.parts.forEach((p) => {
+      p.resolvedUri = resolveUrl(baseUri, p.URI);
+    });
+  }
+
+  if (segment.preloadHints && segment.preloadHints.length && !segment.preloadHints[0].resolvedUri) {
+    segment.preloadHints.forEach((p) => {
+      p.resolvedUri = resolveUrl(baseUri, p.URI);
+    });
   }
 };
 
@@ -91,8 +102,14 @@ export const updateMaster = (master, media) => {
 
   // if the update could overlap existing segment information, merge the two segment lists
   if (playlist.segments) {
+    const original = playlist.segments.slice();
+
+    // also merge the pending segment in with the new playlist update.
+    if (playlist.preloadSegment) {
+      original.push(playlist.preloadSegment);
+    }
     mergedPlaylist.segments = updateSegments(
-      playlist.segments,
+      original,
       media.segments,
       media.mediaSequence - playlist.mediaSequence
     );
@@ -102,6 +119,10 @@ export const updateMaster = (master, media) => {
   mergedPlaylist.segments.forEach((segment) => {
     resolveSegmentUris(segment, mergedPlaylist.resolvedUri);
   });
+
+  if (mergedPlaylist.preloadSegment) {
+    resolveSegmentUris(mergedPlaylist.preloadSegment, mergedPlaylist.resolvedUri);
+  }
 
   // TODO Right now in the playlists array there are two references to each playlist, one
   // that is referenced by index, and one by URI. The index reference may no longer be
@@ -603,6 +624,10 @@ export default class PlaylistLoader extends EventTarget {
           playlist.segments.forEach((segment) => {
             resolveSegmentUris(segment, playlist.resolvedUri);
           });
+        }
+
+        if (playlist.preloadSegment) {
+          resolveSegmentUris(playlist.preloadSegment, playlist.resolvedUri);
         }
       });
       this.trigger('loadedplaylist');
