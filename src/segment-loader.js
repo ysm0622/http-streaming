@@ -22,6 +22,16 @@ import {
 import { gopsSafeToAlignWith, removeGopBuffer, updateGopBuffer } from './util/gops';
 import shallowEqual from './util/shallow-equal.js';
 
+const getSegments = (playlist) => {
+  if (!playlist) {
+    return [];
+  }
+
+  return []
+    .concat(playlist.segments)
+    .concat(playlist.preloadSegment ? [playlist.preloadSegment] : []);
+};
+
 // in ms
 const CHECK_BUFFER_DELAY = 500;
 const finite = (num) => typeof num === 'number' && isFinite(num);
@@ -982,6 +992,10 @@ export default class SegmentLoader extends videojs.EventTarget {
       if (segmentInfo.mediaIndex >= 0) {
         segmentInfo.segment = newPlaylist.segments[segmentInfo.mediaIndex];
       }
+
+      if (segmentInfo.partIndex >= 0) {
+        segmentInfo.part = segmentInfo.segment[segmentInfo.partIndex];
+      }
     }
 
     this.syncController_.saveExpiredSegmentInfo(oldPlaylist, newPlaylist);
@@ -1265,8 +1279,9 @@ export default class SegmentLoader extends videojs.EventTarget {
     }
 
     const bufferedTime = Math.max(0, lastBufferedEnd - currentTime);
+    const segments = getSegments(playlist);
 
-    if (!playlist.segments.length) {
+    if (!segments.length) {
       return null;
     }
 
@@ -1296,7 +1311,7 @@ export default class SegmentLoader extends videojs.EventTarget {
       isSyncRequest = true;
     } else if (currentMediaIndex !== null) {
     // Under normal playback conditions fetching is a simple walk forward
-      const segment = playlist.segments[currentMediaIndex];
+      const segment = segments[currentMediaIndex];
 
       if (segment && segment.end) {
         startOfSegment = segment.end;
@@ -1380,28 +1395,34 @@ export default class SegmentLoader extends videojs.EventTarget {
       return 0;
     }
 
-    const segmentIndexArray = playlist.segments
-      .map((s, i) => {
-        return {
-          timeline: s.timeline,
-          segmentIndex: i
-        };
-      }).filter(s => s.timeline === this.currentTimeline_);
+    const segments = getSegments(playlist);
+
+    const segmentIndexArray = segments
+      .map((s, i) => ({timeline: s.timeline, segmentIndex: i}))
+      .filter(s => s.timeline === this.currentTimeline_);
 
     if (segmentIndexArray.length) {
       return segmentIndexArray[Math.min(segmentIndexArray.length - 1, 1)].segmentIndex;
     }
 
-    return Math.max(playlist.segments.length - 1, 0);
+    return Math.max(segments.length - 1, 0);
   }
 
   generateSegmentInfo_(playlist, mediaIndex, startOfSegment, isSyncRequest, partIndex) {
-    if (mediaIndex < 0 || mediaIndex >= playlist.segments.length) {
+    const segments = getSegments(playlist);
+
+    if (mediaIndex < 0 || mediaIndex >= segments.length) {
       return null;
     }
 
-    const segment = playlist.segments[mediaIndex];
+    const segment = segments[mediaIndex];
+
+    if (segment.parts && segment.parts.length && partIndex >= segment.parts.length) {
+      return null;
+    }
+
     const part = segment.parts && segment.parts.length && segment.parts[partIndex];
+
     const audioBuffered = this.sourceUpdater_.audioBuffered();
     const videoBuffered = this.sourceUpdater_.videoBuffered();
     let audioAppendStart;
