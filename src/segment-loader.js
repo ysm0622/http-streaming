@@ -28,8 +28,8 @@ const getSegments = (playlist) => {
   }
 
   return []
-    .concat(playlist.segments)
-    .concat(playlist.preloadSegment ? [playlist.preloadSegment] : []);
+    .concat(playlist.segments);
+//    .concat(playlist.preloadSegment ? [playlist.preloadSegment] : []);
 };
 
 // in ms
@@ -993,8 +993,8 @@ export default class SegmentLoader extends videojs.EventTarget {
         segmentInfo.segment = newPlaylist.segments[segmentInfo.mediaIndex];
       }
 
-      if (segmentInfo.partIndex >= 0) {
-        segmentInfo.part = segmentInfo.segment[segmentInfo.partIndex];
+      if (segmentInfo.partIndex >= 0 && segmentInfo.segment.parts) {
+        segmentInfo.part = segmentInfo.segment.parts[segmentInfo.partIndex];
       }
     }
 

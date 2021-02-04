@@ -41,6 +41,12 @@ export const updateSegments = (original, update, offset) => {
 
   for (let i = offset; i < length; i++) {
     result[i - offset] = mergeOptions(original[i], result[i - offset]);
+
+    // if the updates playlist has no parts, then parts are no longer
+    // valid for that segment. remove them from the result.
+    if (original[i].parts && !update[i - offset].parts) {
+      delete result[i - offset].parts;
+    }
   }
   return result;
 };
