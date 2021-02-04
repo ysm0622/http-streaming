@@ -225,7 +225,7 @@
     representationsEl.selectedIndex = selectedIndex;
   };
 
-  ['debug', 'autoplay', 'muted', 'minified', 'sync-workers', 'liveui', 'partial', 'url', 'type', 'keysystems', 'buffer-water', 'override-native', 'preload'].forEach(function(name) {
+  ['debug', 'autoplay', 'muted', 'minified', 'sync-workers', 'liveui', 'partial', 'llhls', 'url', 'type', 'keysystems', 'buffer-water', 'override-native', 'preload'].forEach(function(name) {
     stateEls[name] = document.getElementById(name);
   });
 
@@ -268,6 +268,13 @@
     stateEls.debug.addEventListener('change', function(event) {
       saveState();
       window.videojs.log.level(event.target.checked ? 'debug' : 'info');
+    });
+
+    stateEls.llhls.addEventListener('change', function(event) {
+      saveState();
+
+      // reload the player and scripts
+      stateEls.minified.dispatchEvent(newEvent('change'));
     });
 
     stateEls.partial.addEventListener('change', function(event) {
@@ -344,7 +351,8 @@
             vhs: {
               overrideNative: getInputValue(stateEls['override-native']),
               handlePartialData: getInputValue(stateEls.partial),
-              experimentalBufferBasedABR: getInputValue(stateEls['buffer-water'])
+              experimentalBufferBasedABR: getInputValue(stateEls['buffer-water']),
+              llhls: getInputValue(stateEls.llhls)
             }
           }
         });

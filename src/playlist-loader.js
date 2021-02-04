@@ -203,6 +203,7 @@ export default class PlaylistLoader extends EventTarget {
 
     this.customTagParsers = (vhsOptions && vhsOptions.customTagParsers) || [];
     this.customTagMappers = (vhsOptions && vhsOptions.customTagMappers) || [];
+    this.llhls = (vhsOptions && vhsOptions.llhls) || false;
 
     // initialize the loader state
     this.state = 'HAVE_NOTHING';
@@ -284,7 +285,8 @@ export default class PlaylistLoader extends EventTarget {
       oninfo: ({message}) => this.logger_(`m3u8-parser info for ${id}: ${message}`),
       manifestString: playlistString,
       customTagParsers: this.customTagParsers,
-      customTagMappers: this.customTagMappers
+      customTagMappers: this.customTagMappers,
+      llhls: this.llhls
     });
 
     playlist.lastRequest = Date.now();
@@ -592,7 +594,8 @@ export default class PlaylistLoader extends EventTarget {
       const manifest = parseManifest({
         manifestString: req.responseText,
         customTagParsers: this.customTagParsers,
-        customTagMappers: this.customTagMappers
+        customTagMappers: this.customTagMappers,
+        llhls: this.llhls
       });
 
       this.setupInitialPlaylist(manifest);
