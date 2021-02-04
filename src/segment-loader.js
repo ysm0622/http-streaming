@@ -1309,7 +1309,7 @@ export default class SegmentLoader extends videojs.EventTarget {
       }
       nextPartIndex = typeof currentPartIndex === 'number' ? currentPartIndex + 1 : 0;
 
-      if (!segment.parts || !segment.parts.length || !segment.parts[nextPartIndex]) {
+      if (!segment || !segment.parts || !segment.parts.length || !segment.parts[nextPartIndex]) {
         nextMediaIndex = currentMediaIndex + 1;
         nextPartIndex = 0;
       } else {

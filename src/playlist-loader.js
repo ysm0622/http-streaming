@@ -44,7 +44,7 @@ export const updateSegments = (original, update, offset) => {
     const newIndex = i - offset;
 
     // merge parts
-    if (result[newIndex].parts && oldSegments[i].parts) {
+    if (result[newIndex] && result[newIndex].parts && oldSegments[i] && oldSegments[i].parts) {
       for (let p = 0; p < result[newIndex].parts; p++) {
         result[newIndex].parts[p] = mergeOptions(oldSegments[i].parts[p], result[newIndex].parts[p]);
       }
@@ -52,7 +52,9 @@ export const updateSegments = (original, update, offset) => {
 
     // part merging happens above. If the new playlist has no parts for
     // a segment, they are no longer valid for requsting
-    delete oldSegments[i].parts;
+    if (oldSegments[i] && oldSegments[i].parts) {
+      delete oldSegments[i].parts;
+    }
     result[newIndex] = mergeOptions(original[i], result[i - offset]);
   }
   return result;
