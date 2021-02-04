@@ -22,16 +22,6 @@ import {
 import { gopsSafeToAlignWith, removeGopBuffer, updateGopBuffer } from './util/gops';
 import shallowEqual from './util/shallow-equal.js';
 
-const getSegments = (playlist) => {
-  if (!playlist) {
-    return [];
-  }
-
-  return []
-    .concat(playlist.segments);
-//    .concat(playlist.preloadSegment ? [playlist.preloadSegment] : []);
-};
-
 // in ms
 const CHECK_BUFFER_DELAY = 500;
 const finite = (num) => typeof num === 'number' && isFinite(num);
@@ -1279,9 +1269,8 @@ export default class SegmentLoader extends videojs.EventTarget {
     }
 
     const bufferedTime = Math.max(0, lastBufferedEnd - currentTime);
-    const segments = getSegments(playlist);
 
-    if (!segments.length) {
+    if (!playlist.segments.length) {
       return null;
     }
 
@@ -1311,7 +1300,7 @@ export default class SegmentLoader extends videojs.EventTarget {
       isSyncRequest = true;
     } else if (currentMediaIndex !== null) {
     // Under normal playback conditions fetching is a simple walk forward
-      const segment = segments[currentMediaIndex];
+      const segment = playlist.segments[currentMediaIndex];
 
       if (segment && segment.end) {
         startOfSegment = segment.end;
@@ -1395,9 +1384,7 @@ export default class SegmentLoader extends videojs.EventTarget {
       return 0;
     }
 
-    const segments = getSegments(playlist);
-
-    const segmentIndexArray = segments
+    const segmentIndexArray = playlist.segments
       .map((s, i) => ({timeline: s.timeline, segmentIndex: i}))
       .filter(s => s.timeline === this.currentTimeline_);
 
@@ -1405,17 +1392,15 @@ export default class SegmentLoader extends videojs.EventTarget {
       return segmentIndexArray[Math.min(segmentIndexArray.length - 1, 1)].segmentIndex;
     }
 
-    return Math.max(segments.length - 1, 0);
+    return Math.max(playlist.segments.length - 1, 0);
   }
 
   generateSegmentInfo_(playlist, mediaIndex, startOfSegment, isSyncRequest, partIndex) {
-    const segments = getSegments(playlist);
-
-    if (mediaIndex < 0 || mediaIndex >= segments.length) {
+    if (mediaIndex < 0 || mediaIndex >= playlist.segments.length) {
       return null;
     }
 
-    const segment = segments[mediaIndex];
+    const segment = playlist.segments[mediaIndex];
 
     if (segment.parts && segment.parts.length && partIndex >= segment.parts.length) {
       return null;

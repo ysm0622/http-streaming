@@ -34,24 +34,33 @@ const { mergeOptions, EventTarget } = videojs;
   * @return a list of merged segment objects
   */
 export const updateSegments = (original, update, offset) => {
+  const oldSegments = original.slice();
   const result = update.slice();
 
   offset = offset || 0;
   const length = Math.min(original.length, update.length + offset);
 
   for (let i = offset; i < length; i++) {
-    result[i - offset] = mergeOptions(original[i], result[i - offset]);
+    const newIndex = i - offset;
 
-    // if the updates playlist has no parts, then parts are no longer
-    // valid for that segment. remove them from the result.
-    if (original[i].parts && !update[i - offset].parts) {
-      delete result[i - offset].parts;
+    // merge parts
+    if (result[newIndex].parts && oldSegments[i].parts) {
+      for (let p = 0; p < result[newIndex].parts; p++) {
+        result[newIndex].parts[p] = mergeOptions(oldSegments[i].parts[p], result[newIndex].parts[p]);
+      }
     }
+
+    // part merging happens above. If the new playlist has no parts for
+    // a segment, they are no longer valid for requsting
+    delete oldSegments[i].parts;
+    result[newIndex] = mergeOptions(original[i], result[i - offset]);
   }
   return result;
 };
 
 export const resolveSegmentUris = (segment, baseUri) => {
+  // preloadSegments will not have a uri at all
+  // as the segment isn't actually in the manifest yet, only parts
   if (!segment.resolvedUri && segment.uri) {
     segment.resolvedUri = resolveUrl(baseUri, segment.uri);
   }
@@ -61,14 +70,20 @@ export const resolveSegmentUris = (segment, baseUri) => {
   if (segment.map && !segment.map.resolvedUri) {
     segment.map.resolvedUri = resolveUrl(baseUri, segment.map.uri);
   }
-  if (segment.parts && segment.parts.length && !segment.parts[0].resolvedUri) {
+  if (segment.parts && segment.parts.length) {
     segment.parts.forEach((p) => {
+      if (p.resolvedUri) {
+        return;
+      }
       p.resolvedUri = resolveUrl(baseUri, p.URI);
     });
   }
 
-  if (segment.preloadHints && segment.preloadHints.length && !segment.preloadHints[0].resolvedUri) {
+  if (segment.preloadHints && segment.preloadHints.length) {
     segment.preloadHints.forEach((p) => {
+      if (p.resolvedUri) {
+        return;
+      }
       p.resolvedUri = resolveUrl(baseUri, p.URI);
     });
   }
@@ -108,14 +123,8 @@ export const updateMaster = (master, media) => {
 
   // if the update could overlap existing segment information, merge the two segment lists
   if (playlist.segments) {
-    const original = playlist.segments.slice();
-
-    // also merge the pending segment in with the new playlist update.
-    if (playlist.preloadSegment) {
-      original.push(playlist.preloadSegment);
-    }
     mergedPlaylist.segments = updateSegments(
-      original,
+      playlist.segments,
       media.segments,
       media.mediaSequence - playlist.mediaSequence
     );
@@ -125,10 +134,6 @@ export const updateMaster = (master, media) => {
   mergedPlaylist.segments.forEach((segment) => {
     resolveSegmentUris(segment, mergedPlaylist.resolvedUri);
   });
-
-  if (mergedPlaylist.preloadSegment) {
-    resolveSegmentUris(mergedPlaylist.preloadSegment, mergedPlaylist.resolvedUri);
-  }
 
   // TODO Right now in the playlists array there are two references to each playlist, one
   // that is referenced by index, and one by URI. The index reference may no longer be
@@ -630,10 +635,6 @@ export default class PlaylistLoader extends EventTarget {
           playlist.segments.forEach((segment) => {
             resolveSegmentUris(segment, playlist.resolvedUri);
           });
-        }
-
-        if (playlist.preloadSegment) {
-          resolveSegmentUris(playlist.preloadSegment, playlist.resolvedUri);
         }
       });
       this.trigger('loadedplaylist');
