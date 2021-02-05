@@ -1286,7 +1286,7 @@ export default class SegmentLoader extends videojs.EventTarget {
       return null;
     }
 
-    let nextPartIndex = null;
+    let nextPartIndex = typeof currentPartIndex === 'number' ? currentPartIndex + 1 : 0;
     let nextMediaIndex = null;
     let startOfSegment;
     let isSyncRequest = false;
@@ -1307,7 +1307,6 @@ export default class SegmentLoader extends videojs.EventTarget {
       } else {
         startOfSegment = lastBufferedEnd;
       }
-      nextPartIndex = typeof currentPartIndex === 'number' ? currentPartIndex + 1 : 0;
 
       if (!segment || !segment.parts || !segment.parts.length || !segment.parts[nextPartIndex]) {
         nextMediaIndex = currentMediaIndex + 1;
@@ -1436,7 +1435,7 @@ export default class SegmentLoader extends videojs.EventTarget {
       uri: part && part.resolvedUri || segment.resolvedUri,
       // the segment's mediaIndex at the time it was requested
       mediaIndex,
-      partIndex,
+      partIndex: part ? partIndex : null,
       // whether or not to update the SegmentLoader's state with this
       // segment's mediaIndex
       isSyncRequest,
@@ -2281,9 +2280,11 @@ export default class SegmentLoader extends videojs.EventTarget {
    */
   createSimplifiedSegmentObj_(segmentInfo) {
     const segment = segmentInfo.segment;
+    const part = segmentInfo.part;
+
     const simpleSegment = {
-      resolvedUri: segment.resolvedUri,
-      byterange: segment.byterange,
+      resolvedUri: part ? part.resolvedUri : segment.resolvedUri,
+      byterange: part ? part.byterange : segment.byterange,
       requestId: segmentInfo.requestId,
       transmuxer: segmentInfo.transmuxer,
       audioAppendStart: segmentInfo.audioAppendStart,
