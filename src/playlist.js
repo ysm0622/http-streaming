@@ -253,6 +253,7 @@ export const safeLiveIndex = function(playlist, liveEdgePadding) {
     distanceFromEnd += playlist.segments[i].duration;
 
     if (distanceFromEnd >= safeDistance) {
+      i++;
       break;
     }
   }
