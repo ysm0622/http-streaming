@@ -968,6 +968,30 @@ export default class SegmentLoader extends videojs.EventTarget {
     // equal to the last appended mediaIndex
     if (this.mediaIndex !== null) {
       this.mediaIndex -= mediaSequenceDiff;
+
+      /*
+      // mediaIndex is invalid, set it to null
+      if (this.mediaIndex < 0) {
+        this.resyncLoader();
+      } else {
+        const segment = this.playlist_.segments[this.mediaIndex];
+
+        // partIndex should remain the same for the same segment
+        // unless parts fell off of the playlist for this segment.
+        // In that case we need to reset partIndex and resync
+        if (this.partIndex && (!segment.parts || !segment.parts.length || !segment.parts[this.partIndex])) {
+          console.log(`part fell off on part ${this.partIndex}`);
+          this.partIndex = null;
+          this.remove(0, Infinity);
+
+          // clears fmp4 captions
+          if (this.transmuxer_) {
+            this.transmuxer_.postMessage({
+              action: 'clearAllMp4Captions'
+            });
+          }
+        }
+      }*/
     }
 
     // update the mediaIndex on the SegmentInfo object

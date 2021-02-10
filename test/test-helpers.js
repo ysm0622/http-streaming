@@ -433,7 +433,7 @@ export const playlistWithDuration = function(time, conf) {
 
   result.id = result.uri;
 
-  const count = Math.floor(time / 10);
+  const count = Math.ceil(time / 10);
   const remainder = time % 10;
   let i;
   const isEncrypted = conf && conf.isEncrypted;
@@ -447,19 +447,37 @@ export const playlistWithDuration = function(time, conf) {
       timeline++;
       discontinuityStartsIndex++;
     }
-
-    result.segments.push({
+    const segment = {
       uri: i + extension,
       resolvedUri: i + extension,
-      duration: 10,
+      // last segment will be less then 10 if duration is uneven
+      duration: i + 1 === count && remainder ? remainder : 10,
       timeline
-    });
+    };
+
     if (isEncrypted) {
-      result.segments[i].key = {
+      segment.key = {
         uri: i + '-key.php',
         resolvedUri: i + '-key.php'
       };
     }
+    if (conf && conf.llhls) {
+      // only add parts for the last 3 segments
+      if ((count - i) <= 3) {
+        segment.parts = [];
+        for (let z = 0; z < 5; z++) {
+          const uri = `segment${i}.part${z}${extension}`;
+
+          segment.parts.push({
+            uri,
+            resolvedUri: uri,
+            duration: 2
+          });
+        }
+      }
+
+    }
+    result.segments.push(segment);
   }
   if (remainder) {
     result.segments.push({
