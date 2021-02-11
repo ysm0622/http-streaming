@@ -125,6 +125,16 @@ export const updateMaster = (master, media) => {
 
   media.segments = media.segments || [];
 
+  // add any skipped segments back onto the front
+  // so that they can be carried to the new playlist.
+  if (media.skip) {
+    const segments = [];
+
+    segments.length = media.skip['SKIPPED-SEGMENTS'];
+
+    media.segments = segments.concat(media.segments);
+  }
+
   if (media.preloadSegment && media.preloadSegment.parts) {
     media.segments.push(media.preloadSegment);
   }
@@ -222,11 +232,34 @@ export default class PlaylistLoader extends EventTarget {
         // only refresh the media playlist if no other activity is going on
         return;
       }
+      const media = this.media();
 
+      let uri = resolveUrl(this.master.uri, media.uri);
+      const query = [];
+
+      // wait for the next part/segment
+      if (media.serverControl['CAN-BLOCK-RELOAD']) {
+        const preloadSegment = media.preloadSegment;
+
+        if (preloadSegment && preloadSegment.preloadHints) {
+          query.push(`_HLS_part=${(preloadSegment.parts && preloadSegment.parts.length || 0) + preloadSegment.preloadHints.length}`);
+        }
+        query.push(`_HLS_msn=${media.mediaSequence + media.segments.length - 1}`);
+      }
+
+      if (media.serverControl['CAN-SKIP-UNTIL']) {
+        query.push('_HLS_skip=YES');
+      }
+
+      query.forEach(function(str, i) {
+        const symbol = i === 0 ? '?' : '&';
+
+        uri += `${symbol}${str}`;
+      });
       this.state = 'HAVE_CURRENT_METADATA';
 
       this.request = this.vhs_.xhr({
-        uri: resolveUrl(this.master.uri, this.media().uri),
+        uri,
         withCredentials: this.withCredentials
       }, (error, req) => {
         // disposed
