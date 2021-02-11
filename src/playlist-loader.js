@@ -164,16 +164,16 @@ export const updateMaster = (master, media) => {
  */
 export const refreshDelay = (media, update) => {
   const lastSegment = media.segments[media.segments.length - 1];
-  let delay;
+  const lastPart = lastSegment && lastSegment.parts && lastSegment.parts[lastSegment.parts - 1];
+  const lastDuration = lastPart && lastPart.DURATION || lastSegment.duration;
 
-  if (update && lastSegment && lastSegment.duration) {
-    delay = lastSegment.duration * 1000;
-  } else {
-    // if the playlist is unchanged since the last reload or last segment duration
-    // cannot be determined, try again after half the target duration
-    delay = (media.targetDuration || 10) * 500;
+  if (update && lastDuration) {
+    return lastDuration * 1000;
   }
-  return delay;
+
+  // if the playlist is unchanged since the last reload or last segment duration
+  // cannot be determined, try again after half the target duration
+  return (media.partTargetDuration || media.targetDuration || 10) * 500;
 };
 
 /**
@@ -302,7 +302,7 @@ export default class PlaylistLoader extends EventTarget {
     // merge this playlist into the master
     const update = updateMaster(this.master, playlist);
 
-    this.targetDuration = playlist.targetDuration;
+    this.targetDuration = playlist.partTargetDuration || playlist.targetDuration;
 
     if (update) {
       this.master = update;
@@ -381,7 +381,7 @@ export default class PlaylistLoader extends EventTarget {
     window.clearTimeout(this.finalRenditionTimeout);
 
     if (shouldDelay) {
-      const delay = (playlist.targetDuration / 2) * 1000 || 5 * 1000;
+      const delay = ((playlist.partTargetDuration || playlist.targetDuration) / 2) * 1000 || 5 * 1000;
 
       this.finalRenditionTimeout =
         window.setTimeout(this.media.bind(this, playlist, false), delay);
@@ -514,7 +514,7 @@ export default class PlaylistLoader extends EventTarget {
     const media = this.media();
 
     if (shouldDelay) {
-      const delay = media ? (media.targetDuration / 2) * 1000 : 5 * 1000;
+      const delay = media ? ((media.partTargetDuration || media.targetDuration) / 2) * 1000 : 5 * 1000;
 
       this.mediaUpdateTimeout = window.setTimeout(() => this.load(), delay);
       return;
