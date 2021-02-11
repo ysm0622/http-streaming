@@ -61,7 +61,7 @@ export const updateSegments = (original, update, offset) => {
 };
 
 export const resolveSegmentUris = (segment, baseUri) => {
-  // preloadSegments will not have a uri at all
+  // preloadSegment will not have a uri at all
   // as the segment isn't actually in the manifest yet, only parts
   if (!segment.resolvedUri && segment.uri) {
     segment.resolvedUri = resolveUrl(baseUri, segment.uri);
@@ -123,6 +123,12 @@ export const updateMaster = (master, media) => {
 
   const mergedPlaylist = mergeOptions(playlist, media);
 
+  media.segments = media.segments || [];
+
+  if (media.preloadSegment && media.preloadSegment.parts) {
+    media.segments.push(media.preloadSegment);
+  }
+
   // if the update could overlap existing segment information, merge the two segment lists
   if (playlist.segments) {
     mergedPlaylist.segments = updateSegments(
@@ -165,7 +171,7 @@ export const updateMaster = (master, media) => {
 export const refreshDelay = (media, update) => {
   const lastSegment = media.segments[media.segments.length - 1];
   const lastPart = lastSegment && lastSegment.parts && lastSegment.parts[lastSegment.parts - 1];
-  const lastDuration = lastPart && lastPart.DURATION || lastSegment.duration;
+  const lastDuration = lastPart && lastPart.DURATION || lastSegment && lastSegment.duration;
 
   if (update && lastDuration) {
     return lastDuration * 1000;
@@ -636,11 +642,15 @@ export default class PlaylistLoader extends EventTarget {
       // then resolve URIs in advance, as they are usually done after a playlist request,
       // which may not happen if the playlist is resolved.
       manifest.playlists.forEach((playlist) => {
-        if (playlist.segments) {
-          playlist.segments.forEach((segment) => {
-            resolveSegmentUris(segment, playlist.resolvedUri);
-          });
+        playlist.segments = playlist.segments || [];
+
+        if (playlist.preloadSegment && playlist.preloadSegment.parts) {
+          playlist.segments.push(playlist.preloadSegment);
         }
+
+        playlist.segments.forEach((segment) => {
+          resolveSegmentUris(segment, playlist.resolvedUri);
+        });
       });
       this.trigger('loadedplaylist');
       if (!this.request) {

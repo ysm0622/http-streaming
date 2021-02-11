@@ -107,8 +107,10 @@ const segmentInfoString = (segmentInfo) => {
     timeline
   } = segmentInfo;
 
+  const name = segmentInfo.segment.uri ? 'segment' : 'pre-segment';
+
   return [
-    `segment [${index}/${segments.length - 1}]`,
+    `${name} [${index}/${segments.length - 1}]`,
     (partIndex ? `part [${partIndex}/${parts.length - 1}]` : ''),
     `msn [${seq}/${seq + segments.length - 1}]`,
     `playlist [${id}]`,
